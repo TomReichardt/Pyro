@@ -1,0 +1,15 @@
+# Default style
+StyleName            : "Default"
+Palette              : 0
+figure.figsize       : [12, 8]
+figure.facecolor     : "1.0"
+legend.framealpha    : 0.5
+lines.linewidth      : 1.5
+
+# Default MPL style
+StyleName            : "Default MPL"
+Palette              : 4
+figure.figsize       : [8, 6]
+figure.facecolor     : "0.75"
+legend.framealpha    : 1.0
+lines.linewidth      : 1.0
