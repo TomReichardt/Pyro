@@ -66,7 +66,9 @@ def onPress(event):
             else:
                 globalPageSetup['Palette'] = 0
 
-            sns.set_palette(palettes[globalPageSetup['Palette']], n_colors=10)
+            print palettes[globalPageSetup['Palette']].keys()[0]
+
+            sns.set_palette(palettes[globalPageSetup['Palette']].values()[0])
             for i,ik in enumerate(globalLines):
                 c = sns.color_palette(n_colors=10)[indices[i]]
                 globalLines[i].set_color(c)
@@ -186,6 +188,28 @@ def readStyle():
         else:
             pass
     return styles
+
+def readPalette():
+    paletteNum = 0
+    paletteNumType = 0
+    palettes = []
+    try:
+        paletteFile = open(os.path.join(os.path.dirname(__file__), "Palettes.txt"))
+        for line in paletteFile.readlines():
+            if re.match('##', line, re.I) is not None:
+                paletteNumType +=1
+            if (paletteNumType == 1 and re.match('##', line, re.I) is None and len(line.strip()) != 0):
+                palettes.append({line.split(':')[0].strip() : sns.color_palette(re.findall(r'"(#\w+)"', line, re.I))})
+                paletteNum += 1         
+            elif (paletteNumType == 2 and re.match('##', line, re.I) is None and len(line.strip()) != 0):
+                palettes.append({line.split(':')[0].strip() : sns.blend_palette(re.findall(r'"(#\w+)"', line, re.I), 10)})
+                paletteNum += 1
+            elif (paletteNumType == 3 and re.match('##', line, re.I) is None and len(line.strip()) != 0):
+                palettes.append({line.split(':')[0].strip() : sns.light_palette(re.findall(r'"(#\w+)"', line, re.I)[0], 10, reverse=True)})
+                paletteNum += 1
+    except IOError:
+        pass
+    return palettes
 
 def readUnits(filePath):
     if filePath == None:
@@ -316,7 +340,7 @@ def labels(nums, currentData, labs = None):
         P.ylabel(labs[1])
 
 def page():
-    sns.set_palette(palettes[globalPageSetup['Palette']], n_colors=10)
+    sns.set_palette(palettes[globalPageSetup['Palette']].values()[0])
     for key in globalPageSetup:
         try:
             mpl.rcParams['%s' % key] = globalPageSetup[key]
@@ -781,11 +805,16 @@ running = True
 currentData = 0
 vals,globalLegend = readFile()
 styles = readStyle()
+palettes = readPalette()
 
 if len(styles) == 0:
     globalPageSetup = {'lines.linewidth' : 1.5, 'figure.facecolor' : 'w', 'figure.figsize' : [12, 8]}
 else:
     globalPageSetup = styles[0]
+
+if len(palettes) == 0:
+    palettes = [{'Name 1' : sns.color_palette(["#4C72B0", "#55A868", "#C44E52", "#8172B2", "#CCB974", "#64B5CD", "#707070", "#753435", "#80523B", "#584581"])}]
+    globalPageSetup['Palette'] = 0
 
 dataMult = {i : np.ones(len(vals[i])) for i,ik in enumerate(vals)}
 
@@ -793,7 +822,7 @@ for j in range(len(vals)):
     globalLegend[j].append(['Col. %i' %(i+1) for i, ik in enumerate(vals[j])])
 globalInsetToggle = False
 globalLegendSetting = 2
-palettes = ['deep', 'muted', 'pastel', 'bright', 'dark', 'colorblind', 'Paired', 'hls', 'husl', 'BuGn', 'GnBu', 'OrRd', 'PuBu', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd', 'BrBG', 'PiYG', 'PRGn', 'PuOr', 'RdBu', 'RdGy', 'RdYlBu', 'RdYlGn', 'Spectral']
+#palettes = ['deep', 'muted', 'pastel', 'bright', 'dark', 'colorblind', 'Paired', 'hls', 'husl', 'BuGn', 'GnBu', 'OrRd', 'PuBu', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd', 'BrBG', 'PiYG', 'PRGn', 'PuOr', 'RdBu', 'RdGy', 'RdYlBu', 'RdYlGn', 'Spectral']
 globalLims = [None, None, None, None]
 globalInsetLims = [0.0, 0.0, 0.0, 0.0, 2.0]
 globalLabs = [None,None]
