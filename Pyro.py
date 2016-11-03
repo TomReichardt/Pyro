@@ -20,7 +20,7 @@ from itertools import izip
 # - Tunnels (tunnels), wherein data can be input and have specific operations put on them
 #       like the timescale of inspiral
 # - Add ability to read other types of file (csv etc.)
-# - Fix issue to do with changing the colour of a line to a number beyond how many lines there are. Manually make the palettes with 10 colours...
+# - Add data transformations alongside straight column multipliers.
 # - Make PEP8...
 
 #P.ion()
@@ -246,7 +246,7 @@ def makePlot(command, currentData, plotType, xVal, yVals=None):
     for i, ik in enumerate(yVals if len(yVals) > 0 else [None]):
         buildPlot(i, xVal[i], ik, globalLims, plotType)
     inputLegend, inputYVals, inputXVal = list(globalLegend), list(yVals), list(xVal)
-    if plotType == 1:
+    if plotType[0] == 1:
         legend(inputLegend, command, inputYVals, inputXVal, currentData)
 
     labels(command, currentData, globalLabs)
@@ -584,7 +584,7 @@ def interpretDataCommand(option, currentData, vals):
         cols = raw_input('Input the column numbers you wish to multiply separated by a space : ').split()
         cols = [int(ik) for i, ik in enumerate(cols)] 
         for i, ik in enumerate(cols):
-            dataMult[currentData][ik-1] = float(defaultInput('Input multiplier to Column %i of Data %i' %(ik, currentData + 1), dataMult[currentData][i]))
+            dataMult[currentData,ik-1] = float(defaultInput('Input multiplier to Column %i of Data %i' %(ik, currentData + 1), dataMult[currentData][i]))
             if yesNoSelect('Would you like to apply the same multiplier to the same column in all other datasets'):
                 dataMult[:,ik-1] = np.ones(len(dataMult))*dataMult[currentData][ik-1]
 
@@ -681,7 +681,7 @@ def interpretUICommand(line, vals, currentData, termWidth = 80):
 
         dataOrder = range(len(vals))
         dataOrder = dataOrder[currentData:] + dataOrder[:currentData]
-        plotCols = {(dataOrder[i] if ik[0] == '' else int(ik[0])) : ik[-1].split() for i,ik in enumerate(cols)}
+        plotCols = {(dataOrder[i] if ik[0] == '' else int(ik[0])-1) : ik[-1].split() for i,ik in enumerate(cols)}
         for key in plotCols:
             plotCols[key] = [ik.split(':') for i,ik in enumerate(plotCols[key])]
 
@@ -701,12 +701,11 @@ def interpretUICommand(line, vals, currentData, termWidth = 80):
 
             xVal = np.array(xVal)
             yVals = np.array(yVals)
-
             for key in plotCols:
                 for i,ik in enumerate(plotCols[key]):
                     for j in ik[0]:
                         xVal[i] = [k * dataMult[key][ik[1][0]] for k in xVal[i]]
-                        yVals[i] = [k * dataMult[key][j-1] for k in yVals[i]]
+                        yVals[i] = [k * dataMult[key][j] for k in yVals[i]]
 
         elif (globalPlotType[0] in [2]) and (plotCols != {}):
             for key in plotCols:
@@ -817,12 +816,13 @@ if len(palettes) == 0:
     globalPageSetup['Palette'] = 0
 
 dataMult = {i : np.ones(len(vals[i])) for i,ik in enumerate(vals)}
+dataMult = np.ones((len(vals),max([len(ik) for i,ik in enumerate(vals)])))
+print dataMult
 
 for j in range(len(vals)):
     globalLegend[j].append(['Col. %i' %(i+1) for i, ik in enumerate(vals[j])])
 globalInsetToggle = False
 globalLegendSetting = 2
-#palettes = ['deep', 'muted', 'pastel', 'bright', 'dark', 'colorblind', 'Paired', 'hls', 'husl', 'BuGn', 'GnBu', 'OrRd', 'PuBu', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd', 'BrBG', 'PiYG', 'PRGn', 'PuOr', 'RdBu', 'RdGy', 'RdYlBu', 'RdYlGn', 'Spectral']
 globalLims = [None, None, None, None]
 globalInsetLims = [0.0, 0.0, 0.0, 0.0, 2.0]
 globalLabs = [None,None]
