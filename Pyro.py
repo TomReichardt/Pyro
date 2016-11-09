@@ -20,7 +20,8 @@ from itertools import izip
 # - Tunnels (tunnels), wherein data can be input and have specific operations put on them
 #       like the timescale of inspiral
 # - Add ability to read other types of file (csv etc.)
-# - Add data transformations alongside straight column multipliers.
+# - Add ability to create new data columns with equations
+# - Add ability to have two x- or y-axes
 # - Make PEP8...
 
 #P.ion()
@@ -30,6 +31,9 @@ def onPress(event):
     fig = P.gcf()
     ax = P.gca()
     ticker = mpl.ticker.ScalarFormatter(useMathText=True, useOffset=False)
+    minX,maxX=min(ax.get_xlim()),max(ax.get_xlim())
+    minY,maxY=min(ax.get_ylim()),max(ax.get_ylim())
+    xRange,yRange=maxX-minX,maxY-minY
     if isPicked == False:
         if event.key == 'l':
             if event.y < fig.get_size_inches()[1]*fig.dpi * np.array(ax.get_position())[0][1]:
@@ -48,8 +52,8 @@ def onPress(event):
                     ax.yaxis.set_major_formatter(ticker)
                     ax.yaxis.get_major_formatter().set_powerlimits((0,1))
 
-            ax.set_xlim(min(ax.get_xlim()),max(ax.get_xlim()))
-            ax.set_ylim(min(ax.get_ylim()),max(ax.get_ylim()))
+            ax.set_xlim(minX,maxX)
+            ax.set_ylim(minY,maxY)
 
             fig.canvas.draw()
         elif event.key == 'a':
@@ -77,6 +81,18 @@ def onPress(event):
                 ax.legend([ik.get_label() for i, ik in enumerate(globalLines)])
 
             fig.canvas.draw()
+        elif event.key in '+=':
+            if event.x >= fig.get_size_inches()[0]*fig.dpi * np.array(ax.get_position())[0][0]:
+                ax.set_xlim(minX + (0.05*xRange),maxX - (0.05*xRange))
+            if event.y >= fig.get_size_inches()[1]*fig.dpi * np.array(ax.get_position())[0][1]:
+                ax.set_ylim(minY + (0.05*yRange),maxY - (0.05*yRange))
+            fig.canvas.draw()
+        elif event.key == '-':
+            if event.x >= fig.get_size_inches()[0]*fig.dpi * np.array(ax.get_position())[0][0]:
+                ax.set_xlim(minX - (xRange/18.),maxX + (xRange/18.))
+            if event.y >= fig.get_size_inches()[1]*fig.dpi * np.array(ax.get_position())[0][1]:
+                ax.set_ylim(minY - (yRange/18.),maxY + (yRange/18.))
+            fig.canvas.draw()
         else:
             print 'Nothing assigned to key \"%s\"!' % event.key
     elif isPicked == True:
@@ -97,10 +113,14 @@ def onPickPress(event, thisLine, cid):
     key = event.key
     if key in ['1','2','3','4','5','6','7','8','9','0']:
         thisLine.set_color(sns.color_palette(n_colors=10)[int(key)])
-    #elif key == 's':
-    #    print 'Style can be in (- -- -. :)'
-    #    style = defaultInput('Please choose the linestyle desired for this line', '-')
-    #    thisLine.set_linestyle(style)
+    elif key == '.':
+        thisLine.set_linestyle(':')
+    elif key == '/':
+        thisLine.set_linestyle('-')
+    elif key == ';':
+        thisLine.set_linestyle('-.')
+    elif key == '\'':
+        thisLine.set_linestyle('--')
     thisLine.set_linewidth(thisLine.get_linewidth() / 2.)
     if globalLegendSetting == 2:
         ax.legend([ik.get_label() for i, ik in enumerate(globalLines)])
@@ -223,6 +243,14 @@ def readUnits(filePath):
         else:
             pass
     return units
+
+def commandErrorMessage():
+    print '\nYou have an error in your command.'
+    print '\nPlease format plot requests as \"y y y (...) x\", i.e. \"2 1\" plots Column 2 against Column 1.'
+    print '\nYou can also format requests using {} to group, x-y to plot all columns from x to y and x,y to plot columns x and y.'
+    print '\nFor example 1{5-2:1}3{7,4-2:1} will plot Columns 5,4,3 and 2 against 1 (in Data Set 1) and 7,4,3 and 2 against 1 (in Data Set 3).\n'
+    raw_input('Press key to continue...')
+    pass
 
 #==============================================================================
 # Plotting functions
@@ -666,7 +694,7 @@ def interpretNumString(inString):
     outString = map(lambda x: int(x) - 1,re.sub(r',',r' ',outString).split())
     return outString
 
-def interpretUICommand(line, vals, currentData, termWidth = 80):
+def interpretUICommand(line, plotcommand, vals, currentData, termWidth = 80):
     global globalLims, globalLabs, globalPlotType, globalLines
     running = True
     command = None
@@ -678,7 +706,7 @@ def interpretUICommand(line, vals, currentData, termWidth = 80):
                 cols = [(str(currentData),cols.replace(' ', ','))]
             elif re.match(r'[qnvlagpdt]', line, re.I) is not None:
                 command = re.match(r'([qnvlagpdt])', line, re.I).group(0)
-
+        
         dataOrder = range(len(vals))
         dataOrder = dataOrder[currentData:] + dataOrder[:currentData]
         plotCols = {(dataOrder[i] if ik[0] == '' else int(ik[0])-1) : ik[-1].split() for i,ik in enumerate(cols)}
@@ -718,6 +746,7 @@ def interpretUICommand(line, vals, currentData, termWidth = 80):
 
         
         if plotCols != {}:
+            plotcommand = line
             makePlot(plotCols, currentData, globalPlotType, xVal, yVals)
         else:
             if command is None:
@@ -737,16 +766,12 @@ def interpretUICommand(line, vals, currentData, termWidth = 80):
             elif command in 'lLaAgGpPdDtT':
                 vals = Options(command, currentData, termWidth, vals)
     except ValueError:
-        print '\nPlease format plot requests as \"y y y (...) x\", i.e. \"2 1\" plots Column 2 against Column 1.\n'
-        raw_input('Press Enter key to continue...')
-        pass
+        commandErrorMessage()
     except IndexError:
-        print '\nPlease format plot requests as \"y y y (...) x\", i.e. \"2 1\" plots Column 2 against Column 1.\n'
-        raw_input('Press Enter key to continue...')
-        pass
-    return (running, currentData)
+        commandErrorMessage()
+    return (running, currentData, plotcommand)
 
-def drawUI(termWidth, vals, currentData, legend):
+def drawUI(termWidth, vals, currentData, legend, plotcommand):
     os.system('cls' if os.name == 'nt' else 'clear')
     numCols = int(floor(float(termWidth)/30.))
     colWidth = int(floor(float(termWidth)/float(numCols)))
@@ -783,7 +808,7 @@ def drawUI(termWidth, vals, currentData, legend):
         sys.stdout.write('|' + '-'*( int(ceil( (termWidth - 4 * 15) / 2.)) - 1))
     print '-'*termWidth
 
-    command = raw_input('Select from above options : ')
+    command = defaultInput('Select from above options', plotcommand)
     return command
 
 def title(message, termWidth, titleType = 1):
@@ -795,12 +820,16 @@ def title(message, termWidth, titleType = 1):
         sys.stdout.write(("{:-^%i}"%termWidth).format('|' + ' '*3 + message + ' '*3 + '|'))
         sys.stdout.write('-'*termWidth)
 
+#def plotHelp():
+#    a,l,m,q,0-9,;,',.,/,+,=,-
+
 
 #==============================================================================
 # Running program and setting initial conditions
 #==============================================================================
 
 running = True
+lastPlotCommand = ''
 currentData = 0
 vals,globalLegend = readFile()
 styles = readStyle()
@@ -815,9 +844,7 @@ if len(palettes) == 0:
     palettes = [{'Name 1' : sns.color_palette(["#4C72B0", "#55A868", "#C44E52", "#8172B2", "#CCB974", "#64B5CD", "#707070", "#753435", "#80523B", "#584581"])}]
     globalPageSetup['Palette'] = 0
 
-dataMult = {i : np.ones(len(vals[i])) for i,ik in enumerate(vals)}
 dataMult = np.ones((len(vals),max([len(ik) for i,ik in enumerate(vals)])))
-print dataMult
 
 for j in range(len(vals)):
     globalLegend[j].append(['Col. %i' %(i+1) for i, ik in enumerate(vals[j])])
@@ -834,5 +861,5 @@ smoothed = False
 
 while running == True:
     termWidth = getWinWidth()
-    command = drawUI(termWidth, vals, currentData, globalLegend[currentData][0])
-    running, currentData = interpretUICommand(command, vals, currentData, termWidth)
+    command = drawUI(termWidth, vals, currentData, globalLegend[currentData][0], lastPlotCommand)
+    running, currentData, lastPlotCommand = interpretUICommand(command, lastPlotCommand, vals, currentData, termWidth)
